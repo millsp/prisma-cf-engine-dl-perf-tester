@@ -1,0 +1,22 @@
+{
+  "name": "cf-dl-perf-tester",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node -r esbuild-register test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20230419.0",
+    "esbuild": "0.17.18",
+    "esbuild-register": "3.4.2",
+    "execa": "^7.1.1",
+    "typescript": "5.0.4",
+    "vitest": "0.31.0",
+    "wrangler": "2.19.0",
+    "zx": "7.2.2"
+  }
+}

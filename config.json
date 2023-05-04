@@ -1,0 +1,9 @@
+{
+  "mirror": "r2",
+  "version": "002c8923e61b3b67a4254e7bb0addcf196319da1",
+  "platform": "debian-openssl-3.0.x",
+  "engine": "libquery_engine.so.node",
+  "extension": "gz",
+  "filter": "",
+  "verbose": false
+}
