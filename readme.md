@@ -10,6 +10,7 @@ pnpm run test
 
 ## setup
 
+1. Ensure to be using Node 18
 1. Install [pnpm](https://pnpm.io/installation)
 1. Install dependencies: `pnpm i`
 1. Deploy the Worker `pnpm wrangler publish`

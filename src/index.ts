@@ -27,6 +27,8 @@ export default {
 		const response = await fetch(engineUrl)
 		const timeEnd = Date.now();
 
+		console.log(`Fetched ${engineUrl} in ${timeEnd - timeStart}ms`)
+
 		const result = {
 			region: request.cf?.region,
 			time: timeEnd - timeStart,

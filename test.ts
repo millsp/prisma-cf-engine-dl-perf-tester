@@ -3,7 +3,7 @@ import { $ } from 'execa'
 process.env.NODE_NO_WARNINGS='1'
 
 import {
-  mirror,
+  runs,
   version,
   platform,
   engine,
@@ -61,7 +61,7 @@ const PoPs = [
   'Kenya',
 ]
 
-function getWorkerUrl() {
+function getWorkerUrl(mirror: 'r2' | 'aws') {
   return `https://cf-dl-perf-tester.millsp.workers.dev/?mirror=${mirror}&version=${version}&platform=${platform}&engine=${engine}&extension=${extension}`
 }
 
@@ -79,9 +79,14 @@ type WorkerResult =
     size: null
   }
 
-async function getWorkerResult() {
-  const response = await fetch(getWorkerUrl())
-  return await response.json() as WorkerResult
+async function getWorkerResult(mirror: 'r2' | 'aws') {
+  const response = await fetch(getWorkerUrl(mirror))
+  
+  if (response.ok === false) {
+    throw new Error(`Worker returned ${response.status}`)
+  }
+
+  return response.json() as WorkerResult
 }
 
 async function retryWithExpBackOff<T>(fn: () => Promise<T>, times = 3): Promise<T> {
@@ -98,7 +103,8 @@ async function retryWithExpBackOff<T>(fn: () => Promise<T>, times = 3): Promise<
 }
 
 async function main() {
-  const results: Record<string, WorkerResult | number | null> = {}
+  const r2Results: Record<string, (WorkerResult | number | null)[]> = {}
+  const s3Results: Record<string, (WorkerResult | number | null)[]> = {}
   const filters: string[] = filter.split(',')
 
   const filteredPoPs = PoPs.filter((v) => {
@@ -108,24 +114,37 @@ async function main() {
   console.log('Using the following PoP:')
   console.log(filteredPoPs)
 
+  await $`expressvpn disconnect`.catch(() => {})
   for (let PoP of filteredPoPs) {
     await retryWithExpBackOff(async () => {
       await $`expressvpn disconnect`.catch(() => {})
       await $`expressvpn connect ${PoP}`
     })
-    const result = await retryWithExpBackOff(getWorkerResult)
 
-    if (verbose === true) {
-      results[PoP] = result
-    } else {
-      results[PoP] = result.time
+    if (r2Results[PoP] === undefined) {
+      r2Results[PoP] = []
     }
 
-    console.log(`Finished ${PoP} with ${result.time}ms`)
+    if (s3Results[PoP] === undefined) {
+      s3Results[PoP] = []
+    }
+
+    for (let i = 0; i < runs; i++) {
+      const r2Result = await retryWithExpBackOff(() => getWorkerResult('r2'))
+      r2Results[PoP].push(verbose ? r2Result : r2Result.time)
+      console.log(`Finished r2/${PoP} run ${i + 1}/${runs} with ${r2Result.time}ms (${r2Result.status})`)
+
+      const s3Result = await retryWithExpBackOff(() => getWorkerResult('aws'))
+      s3Results[PoP].push(verbose ? s3Result : s3Result.time)
+      console.log(`Finished s3/${PoP} run ${i + 1}/${runs} with ${s3Result.time}ms (${s3Result.status})`)
+    }
   }
 
-  console.log('Results:')
-  console.log(JSON.stringify(results, null, 2))
+  console.log('R2 Results:')
+  console.log(JSON.stringify(r2Results, null, 2))
+
+  console.log('S3 Results:')
+  console.log(JSON.stringify(s3Results, null, 2))
 }
 
 void main()
