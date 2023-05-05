@@ -3,7 +3,6 @@ import { $ } from 'execa'
 process.env.NODE_NO_WARNINGS='1'
 
 import {
-  mirrors,
   runs,
   version,
   platform,
@@ -61,6 +60,8 @@ const PoPs = [
   'Egypt',
   'Kenya',
 ]
+
+const mirrors = ["r2", "aws", "r2_nocache"]
 
 function getWorkerUrl() {
   return `https://ghastly-settled-seahorse.edgecompute.app/?version=${version}&platform=${platform}&engine=${engine}&extension=${extension}&runs=${runs}`
@@ -138,21 +139,21 @@ async function main() {
 
   await $`expressvpn disconnect`.catch(() => {})
   for (let pop of filteredPoPs) {
-    console.log('')
-    console.log(`Testing via: ${pop}`)
-
-    console.time('Connecting took')
-    await retryWithExpBackOff(async () => {
-      await $`expressvpn disconnect`.catch(() => {})
-      await $`expressvpn connect ${pop}`
-    })
-    console.timeEnd('Connecting took')
-
     if (allResults[pop] === undefined) {
       allResults[pop] = {}
     }
 
-    allResults[pop] = await retryWithExpBackOff(() => getWorkerResult())
+    console.log('')
+    console.log(`Testing via: ${pop}`)
+
+    await retryWithExpBackOff(async () => {
+      console.time('Connecting took')
+      await $`expressvpn disconnect`.catch(() => {})
+      await $`expressvpn connect ${pop}`
+      console.timeEnd('Connecting took')
+
+      allResults[pop] = await getWorkerResult()
+    })
 
     if (verbose) {
       for (const [mirror, popResults] of Object.entries(allResults[pop])) {
@@ -179,7 +180,7 @@ async function main() {
     let sheetsResult = `${pop}`
     for (const mirror of Object.keys(allResults[pop])) {
       for (const result of allResults[pop][mirror]) {
-        sheetsResult = `${sheetsResult}\t${JSON.stringify(result)}`
+        sheetsResult = `${sheetsResult}\t${result.timeTotal}`
       }
     }
 

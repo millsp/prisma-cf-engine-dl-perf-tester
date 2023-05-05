@@ -18,4 +18,4 @@ pnpm run test
 1. Deploy the Worker `fastly compute publish`
 1. Install `expressvpn` and login
 1. Inspect `config.json` and adjust as needed
-1. Run `pnpm run test`
+1. Run `pnpm run test > results.txt`

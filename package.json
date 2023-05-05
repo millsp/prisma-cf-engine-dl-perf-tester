@@ -2,7 +2,6 @@
   "name": "cf-dl-perf-tester-2",
   "version": "1.0.0",
   "description": "",
-  "type": "module",
   "scripts": {
     "test": "node -r esbuild-register test.ts",
     "prebuild": "tsc",
