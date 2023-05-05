@@ -1,0 +1,24 @@
+# This file describes a Fastly Compute@Edge package. To learn more visit:
+# https://developer.fastly.com/reference/fastly-toml/
+
+authors = ["mills@prisma.io"]
+description = ""
+language = "javascript"
+manifest_version = 3
+name = "fastly-test"
+service_id = "VsD3p4gXKZdHNuQ0Bjrb86"
+
+[scripts]
+  build = "npm run build"
+
+[local_server]
+  [local_server.backends]
+    [local_server.backends.r2]
+      url = "https://engines.prisma.cool"
+      override_host = "engines.prisma.cool"
+    [local_server.backends.aws]
+      url = "https://binaries.prisma.sh"
+      override_host = "binaries.prisma.sh"
+    [local_server.backends.r2_nocache]
+      url = "https://pub-092fe0ee8317415680958021e7ae0eb6.r2.dev"
+      override_host = "pub-092fe0ee8317415680958021e7ae0eb6.r2.dev"

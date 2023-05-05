@@ -1,23 +1,28 @@
 {
-  "name": "cf-dl-perf-tester",
+  "name": "cf-dl-perf-tester-2",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "node -r esbuild-register test.ts"
+    "test": "node -r esbuild-register test.ts",
+    "prebuild": "tsc",
+    "build": "js-compute-runtime build/index.js bin/main.wasm",
+    "deploy": "fastly compute publish"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@cloudflare/workers-types": "4.20230419.0",
-    "@types/node": "18",
+    "@types/node": "^18.16.3",
     "esbuild": "0.17.18",
     "esbuild-register": "3.4.2",
     "execa": "^7.1.1",
     "typescript": "5.0.4",
-    "vitest": "0.31.0",
     "wrangler": "2.19.0",
     "zx": "7.2.2"
+  },
+  "dependencies": {
+    "@fastly/js-compute": "1.5.1"
   }
 }

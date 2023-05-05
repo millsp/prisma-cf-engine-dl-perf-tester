@@ -3,6 +3,7 @@ import { $ } from 'execa'
 process.env.NODE_NO_WARNINGS='1'
 
 import {
+  mirrors,
   runs,
   version,
   platform,
@@ -46,7 +47,7 @@ const PoPs = [
   'Sweden',
   'Switzerland',
   'Italy - Milan',
-  'France - Paris - 1',
+  'France - Strasbourg',
   'Romania',
   'Spain - Madrid',
   'Ireland',
@@ -61,32 +62,53 @@ const PoPs = [
   'Kenya',
 ]
 
-function getWorkerUrl(mirror: 'r2' | 'aws') {
-  return `https://cf-dl-perf-tester.millsp.workers.dev/?mirror=${mirror}&version=${version}&platform=${platform}&engine=${engine}&extension=${extension}`
+function getWorkerUrl() {
+  return `https://ghastly-settled-seahorse.edgecompute.app/?version=${version}&platform=${platform}&engine=${engine}&extension=${extension}&runs=${runs}`
 }
 
 type WorkerResult =
 | {
-    region: string,
-    time: number,
     status: number,
-    size: number
+    timeTotal: number,
+    timeFetch: number,
+    timeData: number,
+    size: number,
+    region: string,
+    mirror: string,
+    version: string,
   }
 | {
-    region: null,
-    time: null,
-    status: null,
-    size: null
+    status: number,
+    timeTotal: null,
+    timeFetch: null,
+    timeData: null,
+    size: null,
+    region: string,
+    mirror: string,
+    version: string,
   }
 
-async function getWorkerResult(mirror: 'r2' | 'aws') {
-  const response = await fetch(getWorkerUrl(mirror))
+async function getWorkerResult() {
+  const response = await fetch(getWorkerUrl())
   
   if (response.ok === false) {
     throw new Error(`Worker returned ${response.status}`)
   }
+  
+  const popResult = await response.json() as Record<string, WorkerResult[]>
 
-  return response.json() as WorkerResult
+  for (const [mirror, results] of Object.entries(popResult)) {
+    results.forEach((result) => {
+      if (result.status !== 200) {
+        result.timeTotal = null
+        result.timeFetch = null
+        result.timeData = null
+        result.size = null
+      }
+    })
+  }
+
+  return popResult
 }
 
 async function retryWithExpBackOff<T>(fn: () => Promise<T>, times = 3): Promise<T> {
@@ -95,6 +117,7 @@ async function retryWithExpBackOff<T>(fn: () => Promise<T>, times = 3): Promise<
   } catch (e) {
     if (times > 0) {
       await new Promise((r) => setTimeout(r, 2 ** (3 - times) * 1000))
+      console.log('Retrying...')
       return retryWithExpBackOff(fn, times - 1)
     } else {
       throw e
@@ -103,8 +126,7 @@ async function retryWithExpBackOff<T>(fn: () => Promise<T>, times = 3): Promise<
 }
 
 async function main() {
-  const r2Results: Record<string, (WorkerResult | number | null)[]> = {}
-  const s3Results: Record<string, (WorkerResult | number | null)[]> = {}
+  const allResults: Record<string, Record<string, WorkerResult[]>> = {}
   const filters: string[] = filter.split(',')
 
   const filteredPoPs = PoPs.filter((v) => {
@@ -115,36 +137,54 @@ async function main() {
   console.log(filteredPoPs)
 
   await $`expressvpn disconnect`.catch(() => {})
-  for (let PoP of filteredPoPs) {
+  for (let pop of filteredPoPs) {
+    console.log('')
+    console.log(`Testing via: ${pop}`)
+
+    console.time('Connecting took')
     await retryWithExpBackOff(async () => {
       await $`expressvpn disconnect`.catch(() => {})
-      await $`expressvpn connect ${PoP}`
+      await $`expressvpn connect ${pop}`
     })
+    console.timeEnd('Connecting took')
 
-    if (r2Results[PoP] === undefined) {
-      r2Results[PoP] = []
+    if (allResults[pop] === undefined) {
+      allResults[pop] = {}
     }
 
-    if (s3Results[PoP] === undefined) {
-      s3Results[PoP] = []
-    }
+    allResults[pop] = await retryWithExpBackOff(() => getWorkerResult())
 
-    for (let i = 0; i < runs; i++) {
-      const r2Result = await retryWithExpBackOff(() => getWorkerResult('r2'))
-      r2Results[PoP].push(verbose ? r2Result : r2Result.time)
-      console.log(`Finished r2/${PoP} run ${i + 1}/${runs} with ${r2Result.time}ms (${r2Result.status})`)
-
-      const s3Result = await retryWithExpBackOff(() => getWorkerResult('aws'))
-      s3Results[PoP].push(verbose ? s3Result : s3Result.time)
-      console.log(`Finished s3/${PoP} run ${i + 1}/${runs} with ${s3Result.time}ms (${s3Result.status})`)
+    if (verbose) {
+      for (const [mirror, popResults] of Object.entries(allResults[pop])) {
+        popResults.forEach((result, i) => {
+          console.log(`${pop} - ${mirror} - n°${i + 1}: ${JSON.stringify(result)}`)
+        })
+      }
     }
   }
 
-  console.log('R2 Results:')
-  console.log(JSON.stringify(r2Results, null, 2))
+  console.log('')
+  console.log('You can copy paste this into sheets')
 
-  console.log('S3 Results:')
-  console.log(JSON.stringify(s3Results, null, 2))
+  let table = `PoP`
+  for (const mirror of mirrors) {
+    for (let i = 0; i < runs; i++) {
+      table = `${table}\t${mirror} n°${i + 1}`
+    }
+  }
+
+  console.log(table)
+
+  for (const pop of Object.keys(allResults)) {
+    let sheetsResult = `${pop}`
+    for (const mirror of Object.keys(allResults[pop])) {
+      for (const result of allResults[pop][mirror]) {
+        sheetsResult = `${sheetsResult}\t${JSON.stringify(result)}`
+      }
+    }
+
+    console.log(sheetsResult)
+  }
 }
 
 void main()

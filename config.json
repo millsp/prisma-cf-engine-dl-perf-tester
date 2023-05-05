@@ -4,6 +4,7 @@
   "engine": "libquery_engine.so.node",
   "extension": "gz",
   "filter": "",
-  "verbose": false,
-  "runs": 4
+  "verbose": true,
+  "runs": 2,
+  "mirrors": ["r2", "aws", "r2_nocache"]
 }
